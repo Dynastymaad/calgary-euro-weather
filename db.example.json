@@ -1,0 +1,13 @@
+{
+  "_comment": "Copy to db.json and fill in. db.json is gitignored and must never be committed.",
+  "composition_db": {
+    "dialect": "postgres",
+    "driver": "PostgreSQL Unicode",
+    "server": "your-postgres-host.rds.amazonaws.com",
+    "port": 5432,
+    "database": "sandbox",
+    "username": "",
+    "password": "",
+    "sslmode": "require"
+  }
+}

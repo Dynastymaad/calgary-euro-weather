@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calgary Euro Weather</title>
+<style>
+:root{
+ --surface-0:#f6f5f2;--surface-1:#fcfcfb;--border:#e3e1db;
+ --text-primary:#0b0b0b;--text-secondary:#52514e;--text-muted:#79776f;
+ --grid:#e8e6e0;--zero:#9a978e;--avg:#0b0b0b;--low:#4a3aa7;--dgr:#d03b3b;
+ --c1:#2a78d6;--c2:#eb6834;--c3:#1baf7a;--c4:#eda100;
+ --c5:#e87ba4;--c6:#008300;--c7:#4a3aa7;--c8:#e34948}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+ --surface-0:#121211;--surface-1:#1a1a19;--border:#33332f;
+ --text-primary:#fff;--text-secondary:#c3c2b7;--text-muted:#8e8c82;
+ --grid:#2b2b28;--zero:#6a6862;--avg:#ffffff;--low:#9085e9;--dgr:#e66767;
+ --c1:#3987e5;--c2:#d95926;--c3:#199e70;--c4:#c98500;
+ --c5:#d55181;--c6:#008300;--c7:#9085e9;--c8:#e66767}}
+:root[data-theme="dark"]{
+ --surface-0:#121211;--surface-1:#1a1a19;--border:#33332f;
+ --text-primary:#fff;--text-secondary:#c3c2b7;--text-muted:#8e8c82;
+ --grid:#2b2b28;--zero:#6a6862;--avg:#ffffff;--low:#9085e9;--dgr:#e66767;
+ --c1:#3987e5;--c2:#d95926;--c3:#199e70;--c4:#c98500;
+ --c5:#d55181;--c6:#008300;--c7:#9085e9;--c8:#e66767}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface-0);color:var(--text-primary);
+ font:15px/1.55 ui-sans-serif,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+ padding:24px 16px 60px}
+.wrap{max-width:1240px;margin:0 auto}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;
+ flex-wrap:wrap;margin-bottom:18px}
+h1{font-size:1.4rem;margin:0;letter-spacing:-.01em}
+.stamp{font-size:.85rem;color:var(--text-muted);text-align:right}
+.stamp b{color:var(--text-primary);font-variant-numeric:tabular-nums}
+.legend{display:flex;gap:14px;flex-wrap:wrap;padding:11px 13px;background:var(--surface-1);
+ border:1px solid var(--border);border-radius:10px;margin-bottom:16px;
+ position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+.lg{display:inline-flex;gap:6px;align-items:center;font-size:.79rem;color:var(--text-secondary);
+ cursor:pointer;user-select:none}
+.lg.off{opacity:.35}
+.sw{width:12px;height:12px;border-radius:2px;flex:none}
+.sw.ln{width:17px;height:0;border-radius:0;border-top:3px dashed currentColor}
+.card{background:var(--surface-1);border:1px solid var(--border);border-radius:12px;
+ padding:15px 15px 9px;margin-bottom:14px}
+.card h2{font-size:1rem;margin:0 0 9px;letter-spacing:-.005em}
+svg{display:block;width:100%;height:auto;overflow:visible}
+.tick{font-size:10px;fill:var(--text-muted)}
+.blab{font-size:10.5px;fill:var(--text-secondary)}
+.tip{position:fixed;pointer-events:none;background:var(--surface-1);border:1px solid var(--border);
+ border-radius:9px;padding:8px 11px;font-size:.79rem;box-shadow:0 6px 22px rgba(0,0,0,.18);
+ opacity:0;transition:opacity .1s;z-index:30;min-width:150px}
+.tip .d{font-weight:600;margin-bottom:4px}
+.tip .r{display:flex;justify-content:space-between;gap:16px;color:var(--text-secondary)}
+.tip .r b{color:var(--text-primary);font-variant-numeric:tabular-nums}
+details{margin-top:9px}summary{cursor:pointer;font-size:.8rem;color:var(--text-muted)}
+table{border-collapse:collapse;width:100%;font-size:.76rem;margin-top:8px}
+th,td{padding:3px 7px;text-align:right;border-bottom:1px solid var(--border);
+ font-variant-numeric:tabular-nums}
+th{color:var(--text-muted);font-weight:600}td:first-child,th:first-child{text-align:left}
+footer{margin-top:20px;font-size:.8rem;color:var(--text-muted)}
+</style></head><body><div class="wrap">
+<header>
+ <h1>Calgary &mdash; Euro ensemble weather</h1>
+ <div class="stamp">Euro run date<br><b id="ed"></b></div>
+</header>
+<div class="legend" id="legend"></div>
+<div id="out"></div>
+<footer>Degrees Fahrenheit. Average / 25P / 75P over the 100 perturbed members;
+percentiles are PERCENTILE.INC. Lean = 75P &minus; normal + 25P &minus; normal.
+Click a legend entry to hide it.</footer>
+</div><div class="tip" id="tip"></div>
+<script>
+const D=__PAYLOAD__, tip=document.getElementById('tip');
+document.getElementById('ed').textContent=D.euro_date;
+const BAR=['Todays Run','Yday','2 Days Ago','3 Days Ago','3 Day Average','7 Day Average','14 Day Average','30 Day Average'];
+const COL={'Todays Run':'--c1','Yday':'--c2','2 Days Ago':'--c3','3 Days Ago':'--c4',
+ '3 Day Average':'--c5','7 Day Average':'--c6','14 Day Average':'--c7','30 Day Average':'--c8',
+ 'Weighted':'--c1','Average':'--avg','Low Wind':'--low','Danger':'--dgr'};
+const hidden=new Set();
+const LINES=['Average','Low Wind','Danger'];
+let lg='';
+BAR.forEach(n=>lg+=`<span class="lg" data-k="${n}"><span class="sw" style="background:var(${COL[n]})"></span>${n}</span>`);
+LINES.forEach(n=>lg+=`<span class="lg" data-k="${n}" style="color:var(${COL[n]})"><span class="sw ln"></span><span style="color:var(--text-secondary)">${n}</span></span>`);
+document.getElementById('legend').innerHTML=lg;
+
+function nice(lo,hi,n){const raw=(hi-lo)/n,mag=Math.pow(10,Math.floor(Math.log10(Math.abs(raw)||1)));
+ const st=[1,2,2.5,5,10].map(m=>m*mag).find(s=>s>=raw)||10*mag;const o=[];
+ for(let v=Math.ceil(lo/st)*st;v<=hi+1e-9;v+=st)o.push(+v.toFixed(6));return o;}
+
+function draw(key,c){
+ const rows=c.rows, bars=c.bars.filter(b=>!hidden.has(b)), lines=c.lines.filter(b=>!hidden.has(b));
+ const isLine=c.kind==='line';
+ const W=1180,H=c.kind==='single'?220:(isLine?250:260),ML=44,MR=14,MT=12,MB=isLine?40:30;
+ const PH=H-MT-MB, n=rows.length;
+ let lo=1e9,hi=-1e9;
+ rows.forEach(r=>{[...bars,...lines].forEach(k=>{const v=r[k];
+  if(v!=null){lo=Math.min(lo,v);hi=Math.max(hi,v);}});});
+ if(lo===1e9){lo=0;hi=1;}
+ const pad=(hi-lo)*0.12||1; lo-=pad; hi+=pad;
+ if(!isLine&&c.kind!=='single'&&lo>0) lo=Math.max(0,lo);
+ const Y=v=>MT+PH-PH*(v-lo)/(hi-lo);
+ const bw=(W-ML-MR)/n;
+ let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${c.title}">`;
+ nice(lo,hi,5).forEach(v=>{s+=`<line x1="${ML}" x2="${W-MR}" y1="${Y(v).toFixed(1)}" y2="${Y(v).toFixed(1)}" stroke="${Math.abs(v)<1e-9?'var(--zero)':'var(--grid)'}" stroke-width="${Math.abs(v)<1e-9?1.5:1}"/>`
+  +`<text class="tick" x="${ML-6}" y="${(Y(v)+3.5).toFixed(1)}" text-anchor="end">${v}</text>`;});
+ if(isLine){
+  const X=i=>ML+(W-ML-MR)*(i/(n-1));
+  [...bars,...lines].forEach(k=>{let d='',pen=false;
+   rows.forEach((r,i)=>{if(r[k]==null){pen=false;return;}
+    d+=`${pen?'L':'M'}${X(i).toFixed(1)} ${Y(r[k]).toFixed(1)}`;pen=true;});
+   const dash=lines.includes(k)?' stroke-dasharray="6 4"':'';
+   s+=`<path d="${d}" fill="none" stroke="var(${COL[k]})" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"${dash}/>`;});
+  rows.forEach((r,i)=>{if(i%7)return;
+   s+=`<text class="blab" x="${X(i).toFixed(1)}" y="${H-MB+16}" text-anchor="middle">${r.label.slice(5)}</text>`;});
+  s+=`<rect id="ht_${key}" x="${ML}" y="${MT}" width="${W-ML-MR}" height="${PH}" fill="transparent" style="cursor:crosshair"/>`;
+ }else{
+  const gw=bw*0.84, sw=bars.length?gw/bars.length:gw;
+  rows.forEach((r,bi)=>{const x0=ML+bi*bw;
+   bars.forEach((k,si)=>{const v=r[k];if(v==null)return;
+    const x=x0+(bw-gw)/2+si*sw, y0=Y(Math.max(v,Math.max(lo,0))), y1=Y(Math.min(v,Math.max(lo,0)));
+    const yy=Math.min(Y(v),Y(Math.max(lo,0))), hh=Math.abs(Y(v)-Y(Math.max(lo,0)));
+    s+=`<rect class="bar" data-c="${key}" data-r="${bi}" data-k="${k}" x="${x.toFixed(1)}" y="${yy.toFixed(1)}" `
+     +`width="${Math.max(sw-1.2,1).toFixed(1)}" height="${Math.max(hh,0.5).toFixed(1)}" rx="2" fill="var(${COL[k]})"/>`;});});
+  lines.forEach(k=>{let d='',pen=false;
+   rows.forEach((r,bi)=>{if(r[k]==null){pen=false;return;}
+    const x=ML+bi*bw+bw/2; d+=`${pen?'L':'M'}${x.toFixed(1)} ${Y(r[k]).toFixed(1)}`;pen=true;});
+   if(d)s+=`<path d="${d}" fill="none" stroke="var(${COL[k]})" stroke-width="2.5" stroke-dasharray="7 5" stroke-linecap="round"/>`;});
+  rows.forEach((r,bi)=>{s+=`<text class="blab" x="${(ML+bi*bw+bw/2).toFixed(1)}" y="${H-MB+16}" text-anchor="middle">${r.label}</text>`;});
+ }
+ return s+'</svg>';
+}
+
+function render(){
+ const out=document.getElementById('out'); out.innerHTML='';
+ Object.keys(D.charts).forEach(k=>{
+  const c=D.charts[k];
+  let t='<table><tr><th>'+(c.kind==='line'?'Date':'Group')+'</th>'
+   +[...c.bars,...c.lines].map(b=>`<th>${b}</th>`).join('')+'</tr>';
+  c.rows.forEach(r=>{t+=`<tr><td>${r.label}</td>`
+   +[...c.bars,...c.lines].map(b=>`<td>${r[b]==null?'—':(+r[b]).toFixed(1)}</td>`).join('')+'</tr>';});
+  out.insertAdjacentHTML('beforeend',
+   `<div class="card"><h2>${c.title}</h2>${draw(k,c)}`
+   +`<details><summary>Numbers</summary>${t}</table></details></div>`);
+ });
+ document.querySelectorAll('.bar').forEach(b=>{
+  b.addEventListener('mousemove',ev=>{
+   const c=D.charts[b.dataset.c], r=c.rows[+b.dataset.r];
+   let h=`<div class="d">${r.label}</div>`;
+   [...c.bars,...c.lines].forEach(k=>{if(r[k]==null)return;
+    const on=k===b.dataset.k;
+    h+=`<div class="r"><span${on?' style="color:var('+COL[k]+')"':''}>${k}</span><b>${(+r[k]).toFixed(1)}</b></div>`;});
+   tip.innerHTML=h;tip.style.opacity='1';
+   tip.style.left=Math.min(window.innerWidth-200,ev.clientX+14)+'px';
+   tip.style.top=Math.max(8,Math.min(window.innerHeight-200,ev.clientY-60))+'px';});
+  b.addEventListener('mouseleave',()=>tip.style.opacity='0');});
+ const lc=D.charts.lean;
+ const ht=document.getElementById('ht_lean');
+ if(ht){const svg=ht.closest('svg');
+  ht.addEventListener('mousemove',ev=>{
+   const rct=svg.getBoundingClientRect(), W=1180,ML=44,MR=14,n=lc.rows.length;
+   let i=Math.round(((ev.clientX-rct.left)/rct.width*W-ML)/((W-ML-MR)/(n-1)));
+   i=Math.max(0,Math.min(n-1,i)); const r=lc.rows[i];
+   let h=`<div class="d">${r.label} &middot; day ${r.lead}</div>`;
+   [...lc.bars,...lc.lines].forEach(k=>{if(r[k]==null)return;
+    h+=`<div class="r"><span>${k}</span><b>${(+r[k]).toFixed(1)}</b></div>`;});
+   tip.innerHTML=h;tip.style.opacity='1';
+   tip.style.left=Math.min(window.innerWidth-200,ev.clientX+14)+'px';
+   tip.style.top=Math.max(8,Math.min(window.innerHeight-230,ev.clientY-60))+'px';});
+  ht.addEventListener('mouseleave',()=>tip.style.opacity='0');}
+}
+document.getElementById('legend').addEventListener('click',e=>{
+ const el=e.target.closest('.lg'); if(!el)return;
+ const k=el.dataset.k; hidden.has(k)?hidden.delete(k):hidden.add(k);
+ el.classList.toggle('off'); render();});
+render();
+</script></body></html>

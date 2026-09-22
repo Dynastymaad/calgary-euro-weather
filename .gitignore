@@ -1,0 +1,18 @@
+# credentials - never commit
+db.json
+
+# generated output
+wx_dashboard.html
+wx_dashboard_artifact.html
+
+# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# editors / os
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
