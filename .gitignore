@@ -1,7 +1,7 @@
 # credentials - never commit
 db.json
 
-# generated output
+# generated output - docs/index.html is deliberately NOT ignored, it is the site
 wx_dashboard.html
 wx_dashboard_artifact.html
 

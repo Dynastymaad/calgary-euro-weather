@@ -26,6 +26,7 @@ import numpy as np, pandas as pd, pyodbc
 HERE = Path(__file__).resolve().parent
 OUT = HERE / 'wx_dashboard.html'
 OUT_A = HERE / 'wx_dashboard_artifact.html'   # body-only, for publishing to a URL
+OUT_D = HERE / 'docs' / 'index.html'          # what GitHub Pages serves
 STATION, VARIABLE, NMEM = 'CYYC', 'tmax2m', 100
 MEM = [str(i) for i in range(1, NMEM + 1)]
 
@@ -202,7 +203,10 @@ if __name__ == '__main__':
     body = page[page.index('<body>') + len('<body>'):page.rindex('</body>')]
     OUT_A.write_text('<title>Calgary Euro Weather</title>\n' + css + '\n' + body,
                      encoding='utf-8')
-    print(f'\nwrote {OUT}\n      {OUT_A}  (the one to publish)')
+    OUT_D.parent.mkdir(exist_ok=True)
+    OUT_D.write_text(page, encoding='utf-8')   # same standalone page, for Pages
+    print(f'\nwrote {OUT}\n      {OUT_D}  (commit + push this one for GitHub Pages)'
+          f'\n      {OUT_A}  (body-only, for a hosted artifact)')
     print(f'  Euro_date {D["euro_date"]}   charts: {", ".join(D["charts"])}')
     for k, c in D['charts'].items():
         r0 = c['rows'][0]

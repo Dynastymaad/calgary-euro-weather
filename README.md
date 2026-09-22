@@ -46,20 +46,36 @@ You also need an ODBC driver for PostgreSQL. On Windows that is the
 python wx_web.py          # or: refresh.bat
 ```
 
-Roughly ten seconds. It writes two files:
+Roughly ten seconds. It writes three files:
 
-- **`wx_dashboard.html`** - open it in any browser, works offline, nothing to serve.
+- **`docs/index.html`** - what GitHub Pages serves. Committed deliberately.
+- **`wx_dashboard.html`** - the same page at the repo root, for opening locally.
 - **`wx_dashboard_artifact.html`** - the same page with the document skeleton
-  stripped, for publishing to a hosted URL.
+  stripped, for publishing to a hosted artifact URL.
 
-Both are gitignored: they are output, not source.
+The last two are gitignored; `docs/index.html` is not, because it is the site.
 
 ## Publishing to a URL
 
-The page is fully self-contained, so any static host works - GitHub Pages is the
-least effort. Push `wx_dashboard.html` to a `gh-pages` branch as `index.html`, or
-turn on Pages for `/docs` and write the file there. Either way the refresh is
-`python wx_web.py`, then commit and push the output.
+Settings -> Pages -> Source: **Deploy from a branch**, Branch: **main**, Folder:
+**/docs**. The refresh then becomes:
+
+```bash
+python wx_web.py
+git add -A && git commit -m "refresh" && git push
+```
+
+The page is live a minute or so later at
+`https://<you>.github.io/calgary-euro-weather/`.
+
+**Before making this public**, see *Licensing* below.
+
+## Licensing
+
+The ensemble values are ECMWF data delivered through a commercial feed. Publishing
+them on a public site is a redistribution question, not a technical one - check the
+vendor terms before turning Pages on for a public repo. A private repo with Pages
+(GitHub Pro or Team) keeps the page behind sign-in; so does any internal host.
 
 ## Data source
 
