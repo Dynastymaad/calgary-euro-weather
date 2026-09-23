@@ -1,0 +1,5 @@
+cd "C:\Users\mabbasi\Documents\calgary-euro-weather"
+python wx_web.py
+git add -A
+git commit -m "Add generated dashboard for Pages"
+git push
