@@ -69,18 +69,7 @@ reproduced:
 
 ## Chart 6 — Weighted Average Weather by Run
 
-Lead weights, from column `FW`:
-
-| Lead | 0–4 | 5–11 | 12–19 | 20–28 | 29–37 | 38–43 |
-|---|---|---|---|---|---|---|
-| Weight | 0.00 | 0.75 | 0.65 | 0.50 | 0.40 | 0.15 |
-
-`value = SUMPRODUCT(weights[0..41], avg[0..41]) / SUM(weights[0..43])`
-
-The numerator stops at lead 41 (`FY51` uses rows 5:46) while the denominator runs
-to lead 43 (`FW50` sums rows 5:48). That asymmetry is in the workbook and is
-reproduced — the denominator is 19.45. Categories are Today, Yesterday, Two Days
-Ago, Three Days Ago, Three Day Average, and Season Average (the weighted normal).
+Removed from the dashboard (Oct 2026).
 
 ## Verification
 

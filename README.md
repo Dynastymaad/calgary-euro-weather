@@ -1,6 +1,6 @@
 # Calgary Euro Weather
 
-A web replacement for the six Append-page charts in the *Weather Data* workbook.
+A web replacement for the first five Append-page charts in the *Weather Data* workbook.
 It reads the ECMWF ensemble straight from the `canpower` schema, computes the same
 numbers the spreadsheet computed, and writes a single self-contained HTML page.
 
@@ -15,14 +15,13 @@ No Excel, no external workbook links, no macros.
 | Calgary: P90 Euro Weekly Temperatures (F) | 90th percentile | 8 lead buckets x 8 run vintages |
 | Calgary: Temperature Lean | (P90 - normal) + (P10 - normal) | 44 target dates, 3-day rolling |
 | Calgary: Euro Weekly Runs Relative to Normals (F) | mean lean | 6 day ranges x 8 run vintages |
-| Weighted Average Weather by Run | lead-weighted mean high | 6 run vintages |
 
 The legend has the eight run vintages plus the reference lines drawn on all three
 bucket charts: **Average** (historical average high for the bucket's calendar days),
 **Summer Low Wind** (Average + 10), **Summer Danger** (Average + 17),
 **Winter Low Wind** (Average - 10) and **Winter Danger** (Average - 17).
 Lead buckets start today: on Oct 21, "1-5 Day" is Oct 21 - Oct 25.
-Clicking a legend entry hides that series across all six charts. Each chart has a
+Clicking a legend entry hides that series across all charts. Each chart has a
 "Numbers" drawer with the underlying table.
 
 `docs/CHART_SPEC.md` has the cell-by-cell mapping back to the workbook, and the

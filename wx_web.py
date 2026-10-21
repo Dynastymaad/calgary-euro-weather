@@ -1,5 +1,5 @@
 """
-wx_web.py -- rebuild the six Append-page charts as a self-contained web page.
+wx_web.py -- rebuild the Append-page charts as a self-contained web page.
 
 Every number is computed the way the workbook computes it:
 
@@ -37,15 +37,6 @@ OUT_A = HERE / 'wx_dashboard_artifact.html'   # body-only, for publishing to a U
 OUT_D = HERE / 'docs' / 'index.html'          # what GitHub Pages serves
 STATION, VARIABLE, NMEM = 'CYYC', 'tmax2m', 100
 MEM = [str(i) for i in range(1, NMEM + 1)]
-
-# lead -> weight, exactly the FW column
-def weight(lead):
-    if lead <= 4:  return 0.00
-    if lead <= 11: return 0.75
-    if lead <= 19: return 0.65
-    if lead <= 28: return 0.50
-    if lead <= 37: return 0.40
-    return 0.15
 
 VINT = ['Todays Run', 'Yday', '2 Days Ago', '3 Days Ago',
         '3 Day Average', '7 Day Average', '14 Day Average', '30 Day Average']
@@ -196,22 +187,6 @@ def build():
     D['charts']['relnorm'] = {'title': 'Calgary: Euro Weekly Runs Relative to Normals (F)',
                               'kind': 'bucket', 'rows': rows, 'bars': VINT, 'lines': []}
 
-    # Weighted average weather by run
-    den = sum(weight(L) for L in range(44))            # FW50, leads 0..43
-    CATS = [('Today', 'Todays Run'), ('Yesterday', 'Yday'), ('Two Days Ago', '2 Days Ago'),
-            ('Three Days Ago', '3 Days Ago'), ('Three Day Average', '3 Day Average')]
-    rows = []
-    for lab, v in CATS:
-        num = sum(weight(L) * S['avg'][v][L] for L in range(42)     # SUMPRODUCT rows 5..46
-                  if S['avg'][v].get(L) is not None)
-        rows.append({'label': lab, 'Weighted': round(num / den, 2)})
-    sn = sum(weight(L) * nrm(L) for L in range(42) if nrm(L) is not None)
-    rows.append({'label': 'Season Average', 'Weighted': round(sn / den, 2)})
-    base = rows[-1]['Weighted']
-    for r in rows: r['vs Normal'] = round(r['Weighted'] - base, 2)
-    D['charts']['weighted'] = {'title': 'Weighted Average Weather by Run',
-                               'kind': 'single', 'rows': rows,
-                               'bars': ['Weighted'], 'lines': []}
     return D
 
 
