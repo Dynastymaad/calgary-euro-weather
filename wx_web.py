@@ -5,10 +5,18 @@ Every number is computed the way the workbook computes it:
 
   per run_date x target_date, over members 1..100
       Average = AVERAGE(members)
-      25P     = PERCENTILE.INC(members, 0.25)      <- AGGREGATE(16,0,...,0.25)
-      75P     = PERCENTILE.INC(members, 0.75)      <- AGGREGATE(16,0,...,0.75)
-      Normal  = the daily climatology in wx_normals.json ('Weather Averages'!D)
-      Lean    = 75P - Normal + 25P - Normal
+      P10     = PERCENTILE.INC(members, 0.10)
+      P90     = PERCENTILE.INC(members, 0.90)
+      Normal  = the daily climatology in wx_normals.json, looked up by calendar day (MM-DD)
+      Lean    = P90 - Normal + P10 - Normal
+
+  lead buckets
+      '1-5 Day' = Euro_date through Euro_date+4 (today and the next four days), etc.
+
+  reference lines on the three bucket charts
+      Average            = mean daily normal over the bucket's calendar days
+      Summer Low Wind    = Average + 10      Summer Danger = Average + 17
+      Winter Low Wind    = Average - 10      Winter Danger = Average - 17
 
   run vintages
       Todays Run / Yday / 2 Days Ago / 3 Days Ago = those single runs
@@ -41,7 +49,11 @@ def weight(lead):
 
 VINT = ['Todays Run', 'Yday', '2 Days Ago', '3 Days Ago',
         '3 Day Average', '7 Day Average', '14 Day Average', '30 Day Average']
-BUCKETS = [(1, 5), (6, 10), (11, 15), (16, 20), (21, 25), (26, 30), (31, 35), (36, 40)]
+# (first lead, last lead); lead 0 = Euro_date itself, so '1-5 Day' is today .. today+4
+BUCKETS = [(0, 4), (5, 9), (10, 14), (15, 19), (20, 24), (25, 29), (30, 34), (35, 39)]
+# (name, offset from Average in F)
+REFLINES = [('Summer Low Wind', +10), ('Summer Danger', +17),
+            ('Winter Low Wind', -10), ('Winter Danger', -17)]
 # (label, first lead, last lead) - the sheet's own row ranges, row 34 overlap included
 RELNORM = [('Day 1-5', 0, 4), ('Day 6-10', 5, 9), ('Day 11-15', 10, 14),
            ('Day 16-30', 15, 29), ('Day 31-45', 29, 43), ('Day 1-45', 0, 43)]
@@ -51,7 +63,15 @@ def load_normals():
     p = HERE / 'wx_normals.json'
     if not p.exists():
         sys.exit("wx_normals.json is missing - it must sit next to this script.")
-    return {k: float(v) for k, v in json.loads(p.read_text()).items()}
+    raw = {k: float(v) for k, v in json.loads(p.read_text()).items()}
+    # The file repeats one climatology year by day-of-year, which drifts a day after
+    # every leap year (2028-10-21 holds the Oct 22 value). Key it by calendar day
+    # instead, using a non-leap year as the reference, so any date maps to the
+    # historical average for that MM-DD. Feb 29 = mean of Feb 28 and Mar 1.
+    ref = next(y for y in ('2025', '2026', '2027') if f'{y}-12-31' in raw)
+    md = {k[5:]: v for k, v in raw.items() if k.startswith(ref)}
+    md['02-29'] = round((md['02-28'] + md['03-01']) / 2, 2)
+    return lambda d: md.get(d.isoformat()[5:])
 
 
 def pull():
@@ -72,14 +92,14 @@ def pull():
 
 def metrics(df, norm):
     M = df[MEM].to_numpy(dtype=float)
-    q = np.nanpercentile(M, [25, 75], axis=1)          # PERCENTILE.INC
+    q = np.nanpercentile(M, [10, 90], axis=1)          # PERCENTILE.INC
     out = pd.DataFrame({
         'run': pd.to_datetime(df.run_date).dt.date,
         'date': pd.to_datetime(df['date']).dt.date,
-        'avg': np.nanmean(M, axis=1), 'p25': q[0], 'p75': q[1]})
-    out['norm'] = out.date.map(lambda d: norm.get(d.isoformat()))
+        'avg': np.nanmean(M, axis=1), 'p10': q[0], 'p90': q[1]})
+    out['norm'] = out.date.map(norm)
     out = out.dropna(subset=['norm'])
-    out['lean'] = out.p75 - out.norm + out.p25 - out.norm
+    out['lean'] = out.p90 - out.norm + out.p10 - out.norm
     out['lead'] = [(d - r).days for d, r in zip(out.date, out.run)]
     return out
 
@@ -124,32 +144,34 @@ def build():
     M = metrics(pull(), norm)
     E = max(M.run)
     print(f'  Euro_date (latest run) = {E}')
-    nrm = lambda L: norm.get((E + timedelta(days=L)).isoformat())
+    nrm = lambda L: norm(E + timedelta(days=L))
 
-    S = {m: series(M, E, m) for m in ('avg', 'p25', 'p75', 'lean')}
+    S = {m: series(M, E, m) for m in ('avg', 'p10', 'p90', 'lean')}
     D = {'euro_date': E.isoformat(), 'station': STATION, 'charts': {}}
 
-    def bucketchart(metric, title, extras):
+    def bucketchart(metric, title):
         rows = []
         for lo, hi in BUCKETS:
-            r = {'label': f'{lo}-{hi} Day'}
+            d0, d1 = E + timedelta(days=lo), E + timedelta(days=hi)
+            r = {'label': f'{lo + 1}-{hi + 1} Day',
+                 'span': f'{d0:%b} {d0.day} - {d1:%b} {d1.day}'}
             r.update(bucketed(S[metric], lo, hi))
+            # historical average of these calendar days (e.g. every Oct 21 - Oct 25)
             n = [nrm(L) for L in range(lo, hi + 1) if nrm(L) is not None]
             base = round(float(np.mean(n)), 2) if n else None
             r['Average'] = base
-            if 'low' in extras and base is not None:  r['Low Wind'] = round(base + 11, 2)
-            if 'danger' in extras and base is not None: r['Danger'] = round(base - 15, 2)
+            for name, off in REFLINES:
+                r[name] = round(base + off, 2) if base is not None else None
             rows.append(r)
-        lines = ['Average'] + (['Low Wind'] if 'low' in extras else []) \
-                            + (['Danger'] if 'danger' in extras else [])
+        lines = ['Average'] + [n for n, _ in REFLINES]
         return {'title': title, 'kind': 'bucket', 'rows': rows, 'bars': VINT, 'lines': lines}
 
     D['charts']['avg'] = bucketchart('avg',
-        'Calgary: Average Euro Weekly High Temperatures (F)', ['low'])
-    D['charts']['p10'] = bucketchart('p25',
-        'Calgary: P10 Euro Weekly Temperatures (F)', ['low', 'danger'])
-    D['charts']['p75'] = bucketchart('p75',
-        'Calgary: P75 Euro Weekly Temperatures (F)', ['low', 'danger'])
+        'Calgary: Average Euro Weekly High Temperatures (F)')
+    D['charts']['p10'] = bucketchart('p10',
+        'Calgary: P10 Euro Weekly Temperatures (F)')
+    D['charts']['p90'] = bucketchart('p90',
+        'Calgary: P90 Euro Weekly Temperatures (F)')
 
     # Temperature Lean - 3-day rolling mean of the lean, by target date
     rows = []
@@ -158,10 +180,10 @@ def build():
         for v in VINT:
             w = [S['lean'][v][k] for k in (L, L + 1, L + 2) if S['lean'][v].get(k) is not None]
             r[v] = round(float(np.mean(w)), 2) if w else None
-        r['Danger'] = -20
+        r['Lean Danger'] = -20
         rows.append(r)
     D['charts']['lean'] = {'title': 'Calgary: Temperature Lean (P90 - Average + P10 - Average)',
-                           'kind': 'line', 'rows': rows, 'bars': VINT, 'lines': ['Danger']}
+                           'kind': 'line', 'rows': rows, 'bars': VINT, 'lines': ['Lean Danger']}
 
     # Runs relative to normals - mean lean over the sheet's own day ranges
     rows = []

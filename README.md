@@ -11,14 +11,17 @@ No Excel, no external workbook links, no macros.
 | Chart | Metric | Shape |
 |---|---|---|
 | Calgary: Average Euro Weekly High Temperatures (F) | mean of members | 8 lead buckets x 8 run vintages |
-| Calgary: P10 Euro Weekly Temperatures (F) | 25th percentile *(see note)* | 8 lead buckets x 8 run vintages |
-| Calgary: P75 Euro Weekly Temperatures (F) | 75th percentile | 8 lead buckets x 8 run vintages |
-| Calgary: Temperature Lean | (75P - normal) + (25P - normal) | 44 target dates, 3-day rolling |
+| Calgary: P10 Euro Weekly Temperatures (F) | 10th percentile | 8 lead buckets x 8 run vintages |
+| Calgary: P90 Euro Weekly Temperatures (F) | 90th percentile | 8 lead buckets x 8 run vintages |
+| Calgary: Temperature Lean | (P90 - normal) + (P10 - normal) | 44 target dates, 3-day rolling |
 | Calgary: Euro Weekly Runs Relative to Normals (F) | mean lean | 6 day ranges x 8 run vintages |
 | Weighted Average Weather by Run | lead-weighted mean high | 6 run vintages |
 
-Every legend entry from the workbook is present: the eight run vintages plus
-**Average** (normal), **Low Wind** (normal + 11) and **Danger** (normal - 15).
+The legend has the eight run vintages plus the reference lines drawn on all three
+bucket charts: **Average** (historical average high for the bucket's calendar days),
+**Summer Low Wind** (Average + 10), **Summer Danger** (Average + 17),
+**Winter Low Wind** (Average - 10) and **Winter Danger** (Average - 17).
+Lead buckets start today: on Oct 21, "1-5 Day" is Oct 21 - Oct 25.
 Clicking a legend entry hides that series across all six charts. Each chart has a
 "Numbers" drawer with the underlying table.
 
@@ -88,16 +91,16 @@ most recent 40 run dates.
 *Weather Averages* sheet - 2,403 days, 2024-01-01 to 2030-07-31, degrees F. It is
 static reference data and is committed deliberately.
 
-## Notes carried over from the workbook
+## Changes from the workbook
 
-Three quirks were reproduced rather than corrected, so the numbers tie out. Say
-the word and any of them can be fixed.
-
-1. **"P10" is really P25.** The workbook's P10 chart points at the same cell range
-   as its P75 chart, so its series were never repointed. The only lower percentile
-   the sheet computes is `AGGREGATE(16,0,...,0.25)` - `PERCENTILE.INC` at 25%.
-2. **The Lean title says P90/P10**, but the formula in column DG is
-   `75P - normal + 25P - normal`. The formula is what runs.
-3. **P75 used to include the control run.** Column `DE` read `E5:DA5` while `DC`
-   and `DD` read `F5:DA5`. Almost certainly a drag error, worth about 0.05 F.
-   This project uses members 1-100 for all three.
+1. **P75 replaced by P90**, and the P10 chart is now a true 10th percentile (the
+   workbook's "P10" was really P25). The Lean is now `P90 - normal + P10 - normal`,
+   matching its title.
+2. **Buckets include today.** "1-5 Day" covers Euro_date through Euro_date+4
+   (the workbook used +1..+5), so bars and the Average line both cover today and
+   the next four days.
+3. **Normals are looked up by calendar day.** `wx_normals.json` repeats one
+   climatology year by day-of-year, which slips a day after each leap year
+   (2028-10-21 held the Oct 22 value) and ran out in mid-2030. The script now keys
+   it by MM-DD, so every Oct 21 maps to the Oct 21 historical average.
+4. **Members 1-100 only** for every statistic (the workbook's P75 included the control).

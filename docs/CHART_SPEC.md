@@ -1,5 +1,7 @@
 # Chart spec — how each number is built
 
+> **Updated Oct 2026:** P75 → P90, P10 is a true 10th percentile, Lean = P90 − normal + P10 − normal, buckets now start at lead 0 (1-5 Day = today..today+4), normals are looked up by MM-DD, and the bucket charts carry Average, Summer Low Wind (+10), Summer Danger (+17), Winter Low Wind (−10) and Winter Danger (−17). The workbook mapping below is kept for reference; the verification table predates these changes.
+
 Reverse-engineered from the `Append` sheet of *Weather Data.xlsx*, then verified
 against that workbook's own cached values. Cell references below are the
 workbook's, kept so the two can be reconciled later.
